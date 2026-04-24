@@ -41,6 +41,20 @@ sb_cmd_deploy() {
     return 1
   fi
 
+  # Validate deploy.source *before* any network or remote action — fail fast
+  # on obvious config mistakes instead of wasting an SSH connection first.
+  # The '.' case is legitimate (user explicitly deploys the project root).
+  if [[ "$type" == "static" && ! -d "$source" && "$source" != "." ]]; then
+    sb_err "deploy.source does not exist: $source"
+    if [[ -n "$build" ]]; then
+      sb_info "you set deploy.build to '$build' but the output dir '$source' is missing."
+      sb_info "the build may have failed silently; re-run with --verbose."
+    else
+      sb_info "did you forget a deploy.build step? or set deploy.source to '.'?"
+    fi
+    return 1
+  fi
+
   sb_step "Deploying $name"
   sb_info "domain:  $domain"
   sb_info "server:  $server"
@@ -84,22 +98,12 @@ sb_cmd_deploy() {
 
   local src_dir
   if [[ "$type" == "static" ]]; then
+    # Already validated existence above — use as-is, except the '.' sentinel
+    # still needs to map to the project root (which is cwd).
     src_dir="$source"
-    # If the declared source doesn't exist, refuse to silently upload the
-    # project root — that's almost certainly not what the user wanted. The
-    # only case where "." is the right answer is when they explicitly set it.
-    if [[ ! -d "$src_dir" ]]; then
-      if [[ "$src_dir" == "." ]]; then
-        sb_err "source directory '.' does not exist (running from the wrong directory?)"
-        return 1
-      fi
-      sb_err "source directory does not exist: $src_dir"
-      if [[ -n "$build" ]]; then
-        sb_info "you set deploy.build to '$build' but the output dir '$src_dir' is missing."
-        sb_info "the build may have failed silently; re-run with --verbose."
-      else
-        sb_info "did you forget a deploy.build step? or set deploy.source to '.'?"
-      fi
+    if [[ "$src_dir" == "." && ! -d "." ]]; then
+      # Almost impossible (cwd must exist) but keep the guard for clarity.
+      sb_err "project root does not exist"
       return 1
     fi
   else
