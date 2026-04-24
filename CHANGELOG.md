@@ -2,6 +2,15 @@
 
 All notable changes to `site-bootstrap` are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
+## [0.1.1] — patch release
+
+### Fixed
+- `deploy` now fails explicitly when `deploy.source` points at a non-existent directory, instead of silently uploading the project root. Users reported this as "site-bootstrap uploaded my whole repo including node_modules." If `deploy.build` is configured, the error message points at a likely silent build failure; otherwise it suggests the two most common config fixes.
+
+### Added
+- `CONTRIBUTING.md` with explicit scope guidance (what's in, what's out) and a minimum pre-PR smoke-test checklist.
+
+
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.1.0] — initial public release

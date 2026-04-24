@@ -24,7 +24,7 @@
 
 set -euo pipefail
 
-SB_VERSION="0.1.0"
+SB_VERSION="0.1.1"
 SB_ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || echo "${BASH_SOURCE[0]}")")/.." && pwd)"
 SB_LIB="$SB_ROOT/lib"
 SB_TEMPLATES="$SB_ROOT/templates"
