@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>site-bootstrap · 一条命令部署到你的 VPS</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="一条命令把静态站或 Node 应用部署到你的 VPS · Cloudflare DNS + nginx + Let's Encrypt 自动化 · 带 rollback 和 --dry-run">
+<meta property="og:title" content="site-bootstrap — 一条命令部署到你的 VPS">
+<meta property="og:description" content="Cloudflare DNS + nginx + Let's Encrypt 全链路自动化。纯 Bash，零重依赖。">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0e14;
+  --bg-card: #111823;
+  --bg-code: #0d1420;
+  --border: #1f2937;
+  --border-bright: #334155;
+  --fg: #e6e9ef;
+  --fg-dim: #9ca3af;
+  --accent: #4fd1c5;
+  --accent-bright: #7dd3fc;
+  --accent-warn: #fcd34d;
+  --accent-err: #fca5a5;
+  --green: #86efac;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font: 400 16px/1.6 "Inter", system-ui, -apple-system, "PingFang SC", "Hiragino Sans GB", sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  -webkit-font-smoothing: antialiased;
+}
+.mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
+
+.nav {
+  position: sticky; top: 0; z-index: 10;
+  background: rgba(10,14,20,0.75);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+  padding: 0.9rem 0;
+}
+.nav-inner {
+  max-width: 1040px; margin: 0 auto; padding: 0 1.5rem;
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 1rem;
+}
+.nav a.brand { font-weight: 700; color: var(--fg); text-decoration: none; letter-spacing: -0.01em; }
+.nav a.brand .mono { color: var(--accent); }
+.nav-links { display: flex; gap: 1.5rem; font-size: 0.92rem; }
+.nav-links a { color: var(--fg-dim); text-decoration: none; transition: color 120ms; }
+.nav-links a:hover { color: var(--fg); }
+
+.wrap { max-width: 1040px; margin: 0 auto; padding: 0 1.5rem; }
+
+.hero {
+  padding: 6rem 0 3rem;
+  text-align: center;
+  background:
+    radial-gradient(circle at 20% 10%, rgba(79,209,197,0.08), transparent 50%),
+    radial-gradient(circle at 80% 30%, rgba(125,211,252,0.08), transparent 50%);
+}
+.tag {
+  display: inline-block;
+  padding: 0.35rem 0.85rem;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.78rem;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+  background: rgba(79,209,197,0.1);
+  border: 1px solid rgba(79,209,197,0.3);
+  border-radius: 2rem;
+  margin-bottom: 1.5rem;
+}
+h1 {
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  line-height: 1.1;
+  margin: 0 0 1.5rem;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+}
+h1 .mono { color: var(--accent-bright); }
+.hero p.lede {
+  font-size: 1.15rem;
+  color: var(--fg-dim);
+  max-width: 640px;
+  margin: 0 auto 2.5rem;
+}
+.cta {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  padding: 0.8rem 1.4rem;
+  background: var(--accent);
+  color: #041018;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  text-decoration: none;
+  transition: transform 120ms;
+}
+.cta:hover { transform: translateY(-1px); }
+.cta.outline {
+  background: transparent;
+  color: var(--fg);
+  border: 1px solid var(--border-bright);
+}
+.cta-group { display: flex; justify-content: center; gap: 0.75rem; flex-wrap: wrap; }
+
+.badges { margin: 2rem 0 0; display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap; opacity: 0.85; }
+.badges img { height: 22px; }
+
+.terminal {
+  margin: 3rem auto 0;
+  max-width: 780px;
+  background: var(--bg-code);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  overflow: hidden;
+  text-align: left;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.terminal-bar {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.65rem 1rem;
+  background: #0a1018;
+  border-bottom: 1px solid var(--border);
+}
+.dot { width: 10px; height: 10px; border-radius: 50%; background: #333; }
+.dot.r { background: #ef4444; }
+.dot.y { background: #eab308; }
+.dot.g { background: #22c55e; }
+.terminal-title { margin-left: auto; font-size: 0.8rem; color: var(--fg-dim); }
+.terminal pre {
+  margin: 0;
+  padding: 1.2rem 1.4rem;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.88rem;
+  line-height: 1.65;
+  color: var(--fg);
+  overflow-x: auto;
+}
+.terminal .cmt { color: var(--fg-dim); }
+.terminal .prompt { color: var(--accent); }
+.terminal .ok { color: var(--green); }
+
+section { padding: 5rem 0; border-top: 1px solid var(--border); }
+section h2 {
+  font-size: 2rem;
+  margin: 0 0 0.75rem;
+  letter-spacing: -0.01em;
+}
+section .subtitle { color: var(--fg-dim); margin: 0 0 3rem; font-size: 1.05rem; }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+.card {
+  padding: 1.5rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  transition: border-color 160ms;
+}
+.card:hover { border-color: var(--border-bright); }
+.card h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  display: flex; align-items: center; gap: 0.6rem;
+}
+.card h3 .icon { color: var(--accent); }
+.card p { margin: 0; color: var(--fg-dim); font-size: 0.95rem; }
+
+table.cmd {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+table.cmd td {
+  padding: 0.75rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+table.cmd td:first-child {
+  font-family: "JetBrains Mono", monospace;
+  color: var(--accent-bright);
+  font-size: 0.88rem;
+  white-space: nowrap;
+  padding-right: 1.25rem;
+  width: 1%;
+}
+table.cmd td:last-child { color: var(--fg-dim); }
+
+footer {
+  padding: 3rem 0;
+  text-align: center;
+  color: var(--fg-dim);
+  font-size: 0.88rem;
+  border-top: 1px solid var(--border);
+}
+footer a { color: var(--fg-dim); }
+
+@media (max-width: 640px) {
+  .hero { padding: 3.5rem 0 2rem; }
+  section { padding: 3rem 0; }
+}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="#"><span class="mono">$</span> site-bootstrap</a>
+    <div class="nav-links">
+      <a href="#commands">命令</a>
+      <a href="#design">设计</a>
+      <a href="https://github.com/491034170/site-bootstrap" target="_blank" rel="noopener">GitHub →</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero wrap">
+  <div class="tag">v0.1.1 · MIT · Pure Bash</div>
+  <h1>一条命令<br>把你的站部到<span class="mono">VPS</span>。</h1>
+  <p class="lede">
+    Cloudflare DNS · nginx · Let's Encrypt 全链路自动化。<br>
+    带 rollback、<span class="mono">--dry-run</span>，纯 Bash 零重依赖。
+  </p>
+  <div class="cta-group">
+    <a class="cta" href="https://github.com/491034170/site-bootstrap#30-秒跑通--30-second-demo">30 秒跑通</a>
+    <a class="cta outline" href="https://github.com/491034170/site-bootstrap" target="_blank" rel="noopener">GitHub 源码</a>
+  </div>
+  <div class="badges">
+    <img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square" alt="MIT">
+    <img src="https://img.shields.io/badge/shell-bash-4EAA25?style=flat-square&logo=gnubash&logoColor=white" alt="Bash">
+    <img src="https://img.shields.io/badge/release-v0.1.1-0A66C2?style=flat-square" alt="Release">
+    <img src="https://img.shields.io/badge/deps-ssh%20%2B%20rsync%20%2B%20jq-2EA043?style=flat-square" alt="Deps">
+  </div>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+      <span class="terminal-title">~/my-blog — deploy</span>
+    </div>
+<pre><span class="prompt">$</span> <span>site-bootstrap new my-blog</span>
+  <span class="cmt">domain:       blog.example.com</span>
+  <span class="cmt">ssh alias:    my-vps</span>
+  <span class="cmt">type:         static</span>
+
+<span class="prompt">$</span> <span>cd my-blog &amp;&amp; site-bootstrap deploy</span>
+==&gt; DNS via Cloudflare
+    DNS record already correct (203.0.113.10)
+==&gt; Upload
+==&gt; Nginx
+    nginx -t: syntax is ok
+==&gt; SSL
+    <span class="ok">✓ certificate issued</span>
+==&gt; Verify
+    HTTP/2 200 OK
+<span class="ok">✓ deployed: https://blog.example.com</span></pre>
+  </div>
+</header>
+
+<section class="wrap" id="features">
+  <h2>为什么这工具</h2>
+  <p class="subtitle">把"每次上线重做的那 6 步"塞进一条命令，还顺手留好回滚。</p>
+
+  <div class="grid">
+    <div class="card">
+      <h3><span class="icon">◆</span> 一命令全链路</h3>
+      <p>Cloudflare DNS 自动加 A 记录 → 本地 build → rsync 上传 → 服务器写 nginx → certbot 签 SSL → curl 验证。你只管写代码。</p>
+    </div>
+    <div class="card">
+      <h3><span class="icon">◆</span> 自动快照回滚</h3>
+      <p>每次 deploy 把上一版 rsync 到 <code class="mono">.prev</code>。出问题一条 <code class="mono">rollback</code> 切回去。</p>
+    </div>
+    <div class="card">
+      <h3><span class="icon">◆</span> 零重依赖</h3>
+      <p>只需要 <code class="mono">ssh</code> / <code class="mono">rsync</code> / <code class="mono">jq</code> / <code class="mono">curl</code>。服务器上只要 nginx + certbot。没有 agent、没有 daemon。</p>
+    </div>
+    <div class="card">
+      <h3><span class="icon">◆</span> --dry-run 随处</h3>
+      <p>第一次用心里没底？<code class="mono">--dry-run</code> 会把每一步打印出来不执行。看完放心跑。</p>
+    </div>
+    <div class="card">
+      <h3><span class="icon">◆</span> Scoped API Token</h3>
+      <p>Cloudflare 用最小权限 token（<code class="mono">Zone:DNS:Edit</code>），不是上古的 global key。安全基线默认就对。</p>
+    </div>
+    <div class="card">
+      <h3><span class="icon">◆</span> 真实沉淀</h3>
+      <p>内部部署工具链跑过多年真生产，然后脱敏+重写开源。不是玩具项目。</p>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="commands">
+  <h2>命令速查</h2>
+  <p class="subtitle">七条命令能干所有事。</p>
+
+  <table class="cmd">
+    <tr><td>site-bootstrap new &lt;name&gt;</td><td>交互式生成 <code class="mono">site.yaml</code> 和项目骨架</td></tr>
+    <tr><td>site-bootstrap deploy</td><td>读取 <code class="mono">site.yaml</code> 执行完整部署流水线</td></tr>
+    <tr><td>site-bootstrap dns add …</td><td>单独调用 Cloudflare 加/改 A 记录</td></tr>
+    <tr><td>site-bootstrap cert &lt;domain&gt;</td><td>单独调 certbot 签发/续期证书</td></tr>
+    <tr><td>site-bootstrap rollback</td><td>回滚到上一版部署</td></tr>
+    <tr><td>site-bootstrap doctor</td><td>检查本地工具链 + 远端连通性 + 配置完整性</td></tr>
+    <tr><td>--dry-run</td><td>只打印动作，不执行</td></tr>
+  </table>
+</section>
+
+<section class="wrap" id="design">
+  <h2>设计原则</h2>
+  <p class="subtitle">为什么做成这样。</p>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Bash first</h3>
+      <p>目标受众是"手上有 VPS 想快点上线"的开发者。进门门槛越低越好。</p>
+    </div>
+    <div class="card">
+      <h3>状态只放两处</h3>
+      <p>本地 <code class="mono">site.yaml</code>（项目内）+ 服务器 <code class="mono">/var/www/&lt;domain&gt;.prev</code>（回滚快照）。没别的。</p>
+    </div>
+    <div class="card">
+      <h3>一次做一件事</h3>
+      <p>没有大规模多环境、没有 canary、没有 blue-green。不合适的场景直接说"不适合"。</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p>MIT © 2026 <a href="https://tianmind.com" target="_blank" rel="noopener">Tianmind Studio</a> · <a href="https://github.com/491034170/site-bootstrap" target="_blank" rel="noopener">GitHub</a> · <a href="https://github.com/491034170/site-bootstrap/releases" target="_blank" rel="noopener">Releases</a></p>
+  <p>配套 · <a href="https://github.com/491034170/vps-init" target="_blank" rel="noopener">vps-init</a> 初始化 VPS · <a href="https://github.com/491034170/cloudflare-cn-kit" target="_blank" rel="noopener">cloudflare-cn-kit</a> 运维 Cloudflare</p>
+</footer>
+
+</body>
+</html>
