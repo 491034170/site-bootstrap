@@ -1,0 +1,36 @@
+name: Feature request
+description: Propose a new capability or flag
+title: "feat: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: scenario
+    attributes:
+      label: Real-world scenario
+      description: What are you actually trying to deploy? Concrete example is worth more than a general-sounding ask.
+    validations:
+      required: true
+
+  - type: textarea
+    id: shape
+    attributes:
+      label: What command line / site.yaml would make this work for you
+      description: Draft the UX. It's fine to invent flags that don't exist yet.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+      description: Workarounds, other tools you tried, why they didn't fit.
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      description: site-bootstrap intentionally stays small — see the "not a good fit" section in the README.
+      options:
+        - label: This is not a request to add Kubernetes / blue-green / multi-region / fleet-scale support
+          required: true

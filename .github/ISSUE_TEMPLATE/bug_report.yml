@@ -1,0 +1,69 @@
+name: Bug report
+description: Something in site-bootstrap didn't do what it should
+title: "bug: "
+labels: [bug]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened
+      description: One or two sentences. What did you run, what did you expect, what did you get?
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Exact command
+      description: The command you ran. Include `--verbose` output if you have it.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: output
+    attributes:
+      label: Full output
+      description: Paste the complete output, not a paraphrase.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: config
+    attributes:
+      label: site.yaml (redacted)
+      description: Your site.yaml. Redact any real domain/IP/secret.
+      render: yaml
+
+  - type: input
+    id: version
+    attributes:
+      label: site-bootstrap version
+      placeholder: "run: site-bootstrap version"
+    validations:
+      required: true
+
+  - type: input
+    id: local-os
+    attributes:
+      label: Local OS + bash version
+      placeholder: "macOS 14.5 / bash 5.2"
+    validations:
+      required: true
+
+  - type: input
+    id: remote-os
+    attributes:
+      label: Remote server OS (if relevant)
+      placeholder: "Ubuntu 24.04 / Debian 12"
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you submit
+      options:
+        - label: I ran `site-bootstrap doctor` and relevant issues are addressed or listed above
+          required: true
+        - label: I tried with `--dry-run` and/or `--verbose`
+          required: true
