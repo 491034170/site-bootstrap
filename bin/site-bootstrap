@@ -1,0 +1,140 @@
+#!/usr/bin/env bash
+#
+# site-bootstrap — one-command static/node site deployer over SSH + nginx + Cloudflare + Let's Encrypt.
+#
+# Usage:
+#   site-bootstrap <command> [args...]
+#
+# Commands:
+#   new <name>           scaffold a new site project with site.yaml
+#   deploy               deploy the site in current directory (reads site.yaml)
+#   dns <sub>            add/update Cloudflare A record for subdomain
+#   cert <domain>        request Let's Encrypt SSL for domain
+#   rollback             roll back to the previous deployed version
+#   doctor               check local + remote environment
+#   version              print version
+#   help                 this message
+#
+# Global flags:
+#   --dry-run            print actions without executing
+#   --verbose            show ssh/rsync details
+#   --config <path>      use alternate site.yaml path
+#
+# Docs: https://github.com/tianmind-studio/site-bootstrap
+
+set -euo pipefail
+
+SB_VERSION="0.1.0"
+SB_ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || echo "${BASH_SOURCE[0]}")")/.." && pwd)"
+SB_LIB="$SB_ROOT/lib"
+SB_TEMPLATES="$SB_ROOT/templates"
+
+: "${SB_DRY_RUN:=0}"
+: "${SB_VERBOSE:=0}"
+: "${SB_CONFIG:=site.yaml}"
+
+# shellcheck source=lib/common.sh
+source "$SB_LIB/common.sh"
+
+usage() {
+  cat <<'EOF'
+site-bootstrap — deploy static or node sites to your VPS in one command.
+
+Usage:
+  site-bootstrap <command> [args...]
+
+Commands:
+  new <name>        Scaffold a new site project (interactive).
+  deploy            Deploy the current project (reads site.yaml).
+  dns <sub>         Add or update a Cloudflare A record.
+  cert <domain>     Request or renew a Let's Encrypt certificate.
+  rollback          Roll back to the previous deployment.
+  doctor            Check local tools and remote server state.
+  version           Print version.
+  help              Show this message.
+
+Global flags:
+  --dry-run         Print actions without executing.
+  --verbose         Show ssh/rsync details.
+  --config <path>   Use a non-default config file (default: site.yaml).
+
+Configuration:
+  Create a site.yaml in your project root. See examples/static-site.yaml
+  for the full schema.
+
+Environment:
+  CF_API_TOKEN      Cloudflare API token (scoped: Zone:DNS:Edit).
+  CF_ZONE_ID        Cloudflare zone ID for the apex domain.
+  (Or put them in a local .env file — site-bootstrap will load it.)
+
+Docs: https://github.com/tianmind-studio/site-bootstrap
+EOF
+}
+
+parse_global_flags() {
+  local remaining=()
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --dry-run)   SB_DRY_RUN=1; shift ;;
+      --verbose)   SB_VERBOSE=1; shift ;;
+      --config)    SB_CONFIG="${2:?--config requires a path}"; shift 2 ;;
+      --config=*)  SB_CONFIG="${1#--config=}"; shift ;;
+      -h|--help)   usage; exit 0 ;;
+      -v|--version) echo "site-bootstrap $SB_VERSION"; exit 0 ;;
+      --)          shift; remaining+=("$@"); break ;;
+      *)           remaining+=("$1"); shift ;;
+    esac
+  done
+  SB_ARGS=("${remaining[@]}")
+}
+
+parse_global_flags "$@"
+set -- "${SB_ARGS[@]:-}"
+
+cmd="${1:-help}"
+shift || true
+
+case "$cmd" in
+  new)
+    # shellcheck source=lib/new.sh
+    source "$SB_LIB/new.sh"
+    sb_cmd_new "$@"
+    ;;
+  deploy)
+    # shellcheck source=lib/deploy.sh
+    source "$SB_LIB/deploy.sh"
+    sb_cmd_deploy "$@"
+    ;;
+  dns)
+    # shellcheck source=lib/cloudflare.sh
+    source "$SB_LIB/cloudflare.sh"
+    sb_cmd_dns "$@"
+    ;;
+  cert)
+    # shellcheck source=lib/certbot.sh
+    source "$SB_LIB/certbot.sh"
+    sb_cmd_cert "$@"
+    ;;
+  rollback)
+    # shellcheck source=lib/deploy.sh
+    source "$SB_LIB/deploy.sh"
+    sb_cmd_rollback "$@"
+    ;;
+  doctor)
+    # shellcheck source=lib/doctor.sh
+    source "$SB_LIB/doctor.sh"
+    sb_cmd_doctor "$@"
+    ;;
+  version)
+    echo "site-bootstrap $SB_VERSION"
+    ;;
+  help|--help|-h|"")
+    usage
+    ;;
+  *)
+    sb_err "Unknown command: $cmd"
+    echo "" >&2
+    usage >&2
+    exit 2
+    ;;
+esac
