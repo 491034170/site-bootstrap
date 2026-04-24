@@ -1,0 +1,20 @@
+name: my-app
+domain: app.example.com
+server: my-vps
+
+deploy:
+  type: node
+  source: .
+  build: pnpm build
+  port: 3000  # the port your app listens on; pm2 will run `npm start`
+
+ssl:
+  provider: letsencrypt
+  email: you@example.com
+
+dns:
+  provider: cloudflare
+  proxied: false
+
+nginx:
+  template: proxy  # auto-detected from deploy.type; override if needed

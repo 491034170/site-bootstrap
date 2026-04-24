@@ -1,0 +1,16 @@
+name: my-blog
+domain: blog.example.com
+server: my-vps  # matches an alias in your ~/.ssh/config
+
+deploy:
+  type: static
+  source: dist    # build output directory, or "." for plain HTML
+  build: pnpm build  # omit if you don't need a build step
+
+ssl:
+  provider: letsencrypt
+  email: you@example.com  # omit to use --register-unsafely-without-email
+
+dns:
+  provider: cloudflare
+  proxied: false  # true = orange cloud (CF proxy), false = DNS only

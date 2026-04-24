@@ -1,0 +1,23 @@
+# Use case: you already run something (Docker, a Python service, another node
+# app) on a remote port, and just want site-bootstrap to handle DNS + nginx
+# reverse proxy + SSL for you. The upload/build/pm2 steps are effectively no-ops
+# here; you manage the upstream separately.
+name: my-api
+domain: api.example.com
+server: my-vps
+
+deploy:
+  type: node
+  source: .
+  port: 8080     # upstream you manage yourself
+  # no build — we're not uploading anything; nginx just proxies.
+
+ssl:
+  provider: letsencrypt
+
+dns:
+  provider: cloudflare
+  proxied: true
+
+nginx:
+  template: proxy
